@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Knife Crime Strategic Command Center</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="loadingOverlay" class="loadingOverlay" hidden>
+      <div class="loadingCard">
+        <div class="loadingTitle">Loading data…</div>
+        <div class="loadingMsg" id="loadingMsg">Please wait</div>
+      </div>
+    </div>
+
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-title">Knife Crime Strategic Command Center</div>
+      </div>
+
+      <div class="topbar-controls" role="group" aria-label="Time controls">
+        <div class="timeRangeRow">
+          <div class="timeField">
+            <label class="windowLabel" for="startTimeSelect">Start</label>
+            <select id="startTimeSelect"></select>
+          </div>
+          <div class="timeField">
+            <label class="windowLabel" for="endTimeSelect">End</label>
+            <select id="endTimeSelect"></select>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="topbar-meta">
+        <div class="avatar" title="Operator">
+          <span>G</span>
+        </div>
+        <div class="metaRow">
+          <span id="recordCount">Records: 0</span>
+          <span id="dateRange">Date range: -</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="gphI-layout">
+      <section class="left">
+        <section class="panel mapPanel">
+          <div class="panel-head">
+            <h2>Core Risk Map</h2>
+            <div class="panel-sub" id="mapSubtitle">Stable rendering • Green low → Deep red high</div>
+          </div>
+          <div class="map-shell">
+            <div id="map"></div>
+            <div class="map-legend" id="mapLegend" aria-label="Legend"></div>
+
+            <div id="ggphiSimPanel" class="ggphiSimPanel" hidden>
+              <div class="ggphiSimPanelTitle">G-GPHI decision flow</div>
+              <div class="ggphiSimSection">
+                <h4 class="ggphiSimHeading">1. Intelligence input</h4>
+                <label class="ggphiRangeLabel">
+                  Social media conflict signal (ILP)
+                  <span id="ggphiChatterLabel" class="ggphiRangeValue">Low</span>
+                </label>
+                <input type="range" id="ggphiChatterInput" class="ggphiRange" min="0" max="100" value="20" />
+                <label class="ggphiRangeLabel">
+                  Illicit phone resale activity
+                  <span id="ggphiMarketLabel" class="ggphiRangeValue">Low</span>
+                </label>
+                <input type="range" id="ggphiMarketInput" class="ggphiRange" min="0" max="100" value="10" />
+              </div>
+              <div class="ggphiSimSection">
+                <h4 class="ggphiSimHeading">2. Response</h4>
+                <div class="ggphiBtnGrid">
+                  <button type="button" id="ggphiBtnPatrol" class="ggphiBtn ggphiBtnPatrol">Targeted patrol</button>
+                  <button type="button" id="ggphiBtnCpted" class="ggphiBtn ggphiBtnCpted">
+                    CPTED-Add lighting/surveillance/facial recognition
+                  </button>
+                  <button type="button" id="ggphiBtnVru" class="ggphiBtn ggphiBtnVru">PCSOs Increase/concern for the victims</button>
+                </div>
+                <div class="ggphiResponseLegend" aria-hidden="true">
+                  <span class="ggphiLegEmoji" id="ggphiLegPatrol" title="Patrol (map pulse)">🚓</span>
+                  <span class="ggphiLegEmoji" id="ggphiLegCpted" title="CPTED: lighting / surveillance / facial recognition">🔦</span>
+                  <span class="ggphiLegEmoji" id="ggphiLegVru" title="PCSOs: increase / concern for victims">🏥</span>
+                </div>
+              </div>
+              <div class="ggphiSimSection">
+                <h4 class="ggphiSimHeading">3. Outcome</h4>
+                <div class="ggphiStatsGrid">
+                  <div class="ggphiStatCard">
+                    <span class="ggphiStatValue" id="ggphiCrimeRate">0</span>
+                    <span class="ggphiStatHint">Short-term incident pressure (0–100 index)</span>
+                  </div>
+                  <div class="ggphiStatCard">
+                    <span class="ggphiStatValue" id="ggphiTrustRate">60%</span>
+                    <span class="ggphiStatHint">Police–public trust</span>
+                  </div>
+                  <div class="ggphiStatCard ggphiStatCardWide">
+                    <span class="ggphiStatValue" id="ggphiSustainRate">Moderate</span>
+                    <span class="ggphiStatHint">Sustainability of response</span>
+                  </div>
+                </div>
+                <button type="button" id="ggphiResetBtn" class="ggphiBtnReset">Reset simulation</button>
+              </div>
+              <p class="ggphiSimFootnote">
+                Model: intelligence = social × resale; residual pressure = max(0, intelligence − 0.58×(patrol+CPTED+PCSO concern)).
+                Trust = baseline + PCSO concern − patrol (CPTED neutral). Sustain = baseline + CPTED + PCSO concern + joint CPTED×PCSO.
+                When both ILP sliders are Low (≤30), knife count baseline is 6, scaled by residual/intelligence.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel integrationPanel">
+          <div class="panel-head">
+            <h2>Data Integration (ILP)</h2>
+            <div class="panel-sub">Knife Crime layers & contextual intelligence</div>
+          </div>
+
+          <div class="filterRow">
+            <div class="timeField">
+              <label class="windowLabel" for="areaTypeFilter">Area Type</label>
+              <select id="areaTypeFilter"></select>
+            </div>
+            <div class="timeField">
+              <label class="windowLabel" for="boroughSntFilter">Borough_SNT</label>
+              <select id="boroughSntFilter"></select>
+            </div>
+            <div class="timeField">
+              <label class="windowLabel" for="areaNameFilter">Area Name</label>
+              <select id="areaNameFilter"></select>
+            </div>
+          </div>
+
+          <div class="toggles-grid">
+            <label class="switch">
+              <input id="toggleCrimeCSV" type="checkbox" checked />
+              <span class="slider"></span>
+              <span class="switch-label">Knife Crime</span>
+            </label>
+
+            <label class="switch">
+              <input id="toggleHubs" type="checkbox" />
+              <span class="slider"></span>
+              <span class="switch-label">High-traffic Transportation Hubs</span>
+            </label>
+
+            <label class="switch">
+              <input id="toggleElectronics" type="checkbox" />
+              <span class="slider"></span>
+              <span class="switch-label">Electronics Market</span>
+            </label>
+
+            <label class="switch switchWide">
+              <input id="toggleGgphiSim" type="checkbox" />
+              <span class="slider"></span>
+              <span class="switch-label">G-GPHI Strategic Decision Flow Simulation</span>
+            </label>
+          </div>
+
+          <div class="layerMetaRow">
+            <div class="layerMeta" id="layerStatusText">Layer status: waiting…</div>
+          </div>
+        </section>
+      </section>
+
+      <aside class="right">
+        <section class="panel kpiPanel">
+          <div class="panel-head">
+            <h2>Strategic KPIs</h2>
+            <div class="panel-sub">Trends • Composition • Displacement risk</div>
+          </div>
+
+          <div class="kpi-grid">
+            <article class="kpiCard">
+              <div class="kpiLabel">Incidents (selected)</div>
+              <div class="kpiValue" id="kpiTotal">0</div>
+              <div class="kpiDelta" id="kpiDelta">—</div>
+              <div class="kpiHint">Σ Count for all Offences rows in Start–End, within spatial filters when set</div>
+            </article>
+            <article class="kpiCard">
+              <div class="kpiLabel">Personal Robbery Share</div>
+              <div class="kpiValue" id="kpiRobbery">0%</div>
+              <div class="kpiHint">
+                Σ Count for subtype "Knife Crime with Injury (Personal Robbery)" ÷ Incidents (Σ Count for all Offences
+                rows) over Start–End, within Area Type / Borough_SNT / Area Name when set
+              </div>
+            </article>
+            <article class="kpiCard">
+              <div class="kpiLabel">Short-term displacement risk</div>
+              <div class="kpiValue" id="kpiDisplacement">—</div>
+              <div class="kpiHint">Spatial adjacency + risk jump model</div>
+            </article>
+          </div>
+
+          <div class="chartsGrid">
+            <div class="chartBox">
+              <div class="panel-head miniHead">
+                <h3>Trend vs prior period</h3>
+                <div class="panel-sub" id="trendSubtitle">—</div>
+              </div>
+              <canvas id="kpiLineChart"></canvas>
+            </div>
+
+            <div class="chartBox">
+              <div class="panel-head miniHead">
+                <h3>Crime subtype composition</h3>
+                <div class="panel-sub">Each slice = Σ Count for that Crime Subtype (end of range)</div>
+              </div>
+              <canvas id="kpiPieChart"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel intelPanel">
+          <div class="panel-head">
+            <h2>Predicted Intelligence</h2>
+            <div class="panel-sub">Area-code forecast • Social radar • Unemployment (borough)</div>
+          </div>
+
+          <div class="chartBox unemploymentMapBox">
+            <div class="panel-head miniHead">
+              <h3>Unemployment rate</h3>
+              <div class="panel-sub">
+                Values = <strong>2025 Q3</strong> (same series as Trust for London chart
+                <a
+                  href="https://trustforlondon.org.uk/data/unemployment-rate-borough/#chart-1563"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >Unemployment rate (2024 Q3 and 2025 Q3)</a
+                >). Categories vs <strong>London 5.6%</strong>. Zoom +/- or scroll; drag lower-right to resize.
+              </div>
+            </div>
+            <div class="panel-sub unemploymentMapHint" id="unemploymentMapHint">
+              Source: NOMIS model-based estimates via
+              <a href="https://trustforlondon.org.uk/data/unemployment-rate-borough/" target="_blank" rel="noopener noreferrer"
+                >Trust for London</a
+              >
+              (dataset 1563). Hover a borough for its rate.
+            </div>
+            <div class="unemploymentMapWrap" id="unemploymentMapWrap">
+              <div id="unemploymentMiniMap" class="unemploymentMiniMap" aria-label="London borough unemployment map"></div>
+              <div class="unemploymentMapLegend" id="unemploymentMapLegend">
+                <div class="unemploymentLegendTitle" id="unemploymentLegendMean">vs London mean</div>
+                <div class="unemploymentLegendRow">
+                  <span class="unemploymentSwatch unemploymentSwatch--better"></span><span>Better</span>
+                </div>
+                <div class="unemploymentLegendRow">
+                  <span class="unemploymentSwatch unemploymentSwatch--average"></span><span>Average</span>
+                </div>
+                <div class="unemploymentLegendRow">
+                  <span class="unemploymentSwatch unemploymentSwatch--worse"></span><span>Worse</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chartBox">
+            <div class="panel-head miniHead">
+              <h3>High-frequency area-code forecast</h3>
+              <div class="predictionMode">
+                <button id="predModeBar" class="segBtn is-active" type="button">bar</button>
+                <button id="predModePie" class="segBtn" type="button">pie</button>
+                <button id="predModeLine" class="segBtn" type="button">line</button>
+              </div>
+            </div>
+            <div class="panel-sub" id="predictionSubtitle">Computed from Area Code frequency in the selected window</div>
+            <canvas id="predictionChart"></canvas>
+          </div>
+
+          <div class="chartBox socialRadarBox">
+            <div class="panel-head miniHead">
+              <h3>Internet Monitor</h3>
+              <div class="panel-sub">Social media &amp; black-market synthesis (simulated)</div>
+            </div>
+            <canvas id="socialRadarChart"></canvas>
+          </div>
+        </section>
+
+        <section class="panel resourcePanel">
+          <div class="panel-head">
+            <h2>Police Deployment</h2>
+            <div class="panel-sub">Officer • Staff • PCSO</div>
+          </div>
+
+          <div class="chartBox">
+            <div class="panel-head miniHead">
+              <h3>Strength mix</h3>
+              <div class="panel-sub">donut</div>
+            </div>
+            <canvas id="policeDonut"></canvas>
+            <div class="donutLegend">
+              <span class="dot dotStop"></span> Police Officer
+              <span class="dot dotPop"></span> Police Staff
+              <span class="dot dotGoal"></span> PCSO
+            </div>
+            <div id="policeMeta" class="alertsMeta" style="margin-top:0.6rem;"></div>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6/d3-delaunay.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="./data_bundle.js"></script>
+    <script src="./script_en.js"></script>
+  </body>
+</html>
